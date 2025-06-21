@@ -58,24 +58,23 @@ def msg_box(title, description):
     messagebox.showinfo(title, description)
 
 
-def recognize(frame, db_dir, known_encodings=None, known_names=None, use_multi_encodings=False, return_bbox=False):
+def recognize(frame, db_dir, known_encodings=None, known_names=None, use_multi_encodings=False):
     """
-    Enhanced version with bounding box support for anti-spoofing
+    Enhanced face recognition with proper error handling
     """
     rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     face_locations = face_recognition.face_locations(rgb_frame)
 
     if len(face_locations) == 0:
-        return ('no_persons_found', None, None) if return_bbox else ('no_persons_found', None)
+        return 'no_persons_found', None
     if len(face_locations) > 1:
-        return ('multiple_faces_detected', None, None) if return_bbox else ('multiple_faces_detected', None)
+        return 'multiple_faces_detected', None
 
     face_encodings = face_recognition.face_encodings(rgb_frame, face_locations)
     if not face_encodings:
-        return ('no_persons_found', None, None) if return_bbox else ('no_persons_found', None)
+        return 'no_persons_found', None
 
     encoding = face_encodings[0]
-    bbox = face_locations[0]  # (top, right, bottom, left)
 
     if use_multi_encodings:
         # Load multi-encodings for better accuracy during timer checks
@@ -108,53 +107,47 @@ def recognize(frame, db_dir, known_encodings=None, known_names=None, use_multi_e
                 emp_id = users_data.get(matched_user, "N/A")
             except:
                 emp_id = "N/A"
-            return (matched_user, emp_id, bbox) if return_bbox else (matched_user, emp_id)
+            return matched_user, emp_id
         else:
-            return ('unknown_person', None, bbox) if return_bbox else ('unknown_person', None)
+            return 'unknown_person', None
 
     else:
-        # Original single encoding logic for login/logout - FIXED VERSION
+        # Original single encoding logic for login/logout - FIXED
         if not known_encodings or not known_names:
-            return ('unknown_person', None, bbox) if return_bbox else ('unknown_person', None)
+            return 'unknown_person', None
 
-        # Ensure known_encodings and known_names have the same length
+        # Ensure both lists have the same length
         if len(known_encodings) != len(known_names):
             print(f"Warning: Mismatch between encodings ({len(known_encodings)}) and names ({len(known_names)})")
-            return ('unknown_person', None, bbox) if return_bbox else ('unknown_person', None)
+            return 'unknown_person', None
 
+        matches = face_recognition.compare_faces(known_encodings, encoding, tolerance=0.43)
+
+        if not any(matches):
+            return 'unknown_person', None
+
+        # Find the first True match
         try:
-            matches = face_recognition.compare_faces(known_encodings, encoding, tolerance=0.43)
-            if any(matches):  # Use any() instead of np.any() for better compatibility
-                # Find the index of the first True match
-                matched_indices = [i for i, match in enumerate(matches) if match]
-                if matched_indices:
-                    matched_idx = matched_indices[0]
+            matched_idx = matches.index(True)
+            matched_user = known_names[matched_idx]
 
-                    # Double-check that the index is valid
-                    if 0 <= matched_idx < len(known_names):
-                        matched_user = known_names[matched_idx]
-                        users_file = os.path.join(db_dir, 'users.json')
-                        try:
-                            with open(users_file, 'r') as f:
-                                users_data = json.load(f)
-                            emp_id = users_data.get(matched_user, "N/A")
-                        except:
-                            emp_id = "N/A"
-                        return (matched_user, emp_id, bbox) if return_bbox else (matched_user, emp_id)
-                    else:
-                        print(f"Error: Invalid index {matched_idx} for known_names list of length {len(known_names)}")
-                        return ('unknown_person', None, bbox) if return_bbox else ('unknown_person', None)
-
-            return ('unknown_person', None, bbox) if return_bbox else ('unknown_person', None)
-
-        except Exception as e:
-            print(f"Error in face recognition: {e}")
-            return ('unknown_person', None, bbox) if return_bbox else ('unknown_person', None)
+            # Get emp_id
+            users_file = os.path.join(db_dir, 'users.json')
+            try:
+                with open(users_file, 'r') as f:
+                    users_data = json.load(f)
+                emp_id = users_data.get(matched_user, "N/A")
+            except:
+                emp_id = "N/A"
+            return matched_user, emp_id
+        except (ValueError, IndexError) as e:
+            print(f"Error finding match: {e}")
+            return 'unknown_person', None
 
 
 def load_known_faces(db_path):
     """
-    Enhanced to load both average and multi encodings with better error handling
+    Enhanced to load both average and multi encodings with proper error handling
     """
     known_avg_encodings = []
     known_names = []
@@ -164,39 +157,36 @@ def load_known_faces(db_path):
         print(f"Database path {db_path} does not exist")
         return known_avg_encodings, known_names, multi_encodings_dict
 
-    try:
-        for user_folder in os.listdir(db_path):
-            user_path = os.path.join(db_path, user_folder)
-            if not os.path.isdir(user_path):
-                continue
+    for user_folder in os.listdir(db_path):
+        user_path = os.path.join(db_path, user_folder)
+        if not os.path.isdir(user_path):
+            continue
 
-            # Load average encoding (for login/logout)
-            encoding_path = os.path.join(user_path, 'avg_encoding.pkl')
-            if os.path.exists(encoding_path):
-                try:
-                    with open(encoding_path, 'rb') as f:
-                        avg_encoding = pickle.load(f)
-                        known_avg_encodings.append(avg_encoding)
-                        known_names.append(user_folder)
-                        print(f"Loaded average encoding for user: {user_folder}")
-                except Exception as e:
-                    print(f"Error loading average encoding for {user_folder}: {e}")
+        # Load average encoding (for login/logout)
+        encoding_path = os.path.join(user_path, 'avg_encoding.pkl')
+        if os.path.exists(encoding_path):
+            try:
+                with open(encoding_path, 'rb') as f:
+                    avg_encoding = pickle.load(f)
+                    known_avg_encodings.append(avg_encoding)
+                    known_names.append(user_folder)
+                    print(f"Loaded average encoding for user: {user_folder}")
+            except Exception as e:
+                print(f"Error loading average encoding for {user_folder}: {e}")
 
-            # Load multi-encodings (for timer accuracy)
-            multi_path = os.path.join(user_path, 'multi_encodings.pkl')
-            if os.path.exists(multi_path):
-                try:
-                    with open(multi_path, 'rb') as f:
-                        multi_encodings = pickle.load(f)
-                        multi_encodings_dict[user_folder] = multi_encodings
-                        print(f"Loaded multi-encodings for user: {user_folder}")
-                except Exception as e:
-                    print(f"Error loading multi-encodings for {user_folder}: {e}")
-
-    except Exception as e:
-        print(f"Error loading known faces from {db_path}: {e}")
+        # Load multi-encodings (for timer accuracy)
+        multi_path = os.path.join(user_path, 'multi_encodings.pkl')
+        if os.path.exists(multi_path):
+            try:
+                with open(multi_path, 'rb') as f:
+                    multi_encodings = pickle.load(f)
+                    multi_encodings_dict[user_folder] = multi_encodings
+                    print(f"Loaded {len(multi_encodings)} multi-encodings for user: {user_folder}")
+            except Exception as e:
+                print(f"Error loading multi-encodings for {user_folder}: {e}")
 
     print(f"Total users loaded: {len(known_names)}")
-    print(f"Users with multi-encodings: {len(multi_encodings_dict)}")
+    print(f"Average encodings: {len(known_avg_encodings)}")
+    print(f"Multi-encodings dict: {len(multi_encodings_dict)}")
 
     return known_avg_encodings, known_names, multi_encodings_dict
