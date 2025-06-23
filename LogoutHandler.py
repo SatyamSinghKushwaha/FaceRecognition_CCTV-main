@@ -13,6 +13,7 @@ class LogoutHandler:
             util.msg_box("Error", "No user is currently logged in.")
             return
         frame = self.app.webcam.get_latest_frame()
+
         status, name_or_id = self.recognition.recognize_face(frame)
         if status in ['no_persons_found', 'multiple_faces_detected', 'unknown_person']:
             msg = {

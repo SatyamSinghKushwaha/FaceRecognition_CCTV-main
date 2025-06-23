@@ -8,7 +8,7 @@ import numpy as np
 import pickle
 
 
-def match_face(current_encoding, known_encodings, known_names, tolerance=0.43):
+def match_face(current_encoding, known_encodings, known_names, tolerance=0.40):
     if not known_encodings:
         return "Unknown"
 
@@ -21,7 +21,7 @@ def match_face(current_encoding, known_encodings, known_names, tolerance=0.43):
         return "Unknown"
 
 
-def match_face_multi(current_encoding, multi_encodings_dict, tolerance=0.53):
+def match_face_multi(current_encoding, multi_encodings_dict, tolerance=0.62):
     for name, encodings in multi_encodings_dict.items():
         if not encodings:
             continue
@@ -96,7 +96,7 @@ def recognize(frame, db_dir, known_encodings=None, known_names=None, use_multi_e
                     pass
 
         # Find match using multi encodings
-        matched_user = match_face_multi(encoding, multi_encodings_dict, tolerance=0.5)
+        matched_user = match_face_multi(encoding, multi_encodings_dict, tolerance=0.62)
 
         if matched_user != "Unknown":
             # Get emp_id
@@ -121,7 +121,7 @@ def recognize(frame, db_dir, known_encodings=None, known_names=None, use_multi_e
             print(f"Warning: Mismatch between encodings ({len(known_encodings)}) and names ({len(known_names)})")
             return 'unknown_person', None
 
-        matches = face_recognition.compare_faces(known_encodings, encoding, tolerance=0.43)
+        matches = face_recognition.compare_faces(known_encodings, encoding, tolerance=0.41)
 
         if not any(matches):
             return 'unknown_person', None

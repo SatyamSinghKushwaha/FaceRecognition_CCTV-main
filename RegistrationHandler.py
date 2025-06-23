@@ -42,7 +42,7 @@ class RegistrationHandler:
         self.btn_capture = None
         self.btn_accept = None  # Store reference to start button
 
-    def check_face_already_registered(self, test_frame, tolerance=0.6):
+    def check_face_already_registered(self, test_frame, tolerance=0.32):
         """
         Check if the face in the test frame is already registered in the system
         Returns: (is_duplicate, existing_user_name, existing_emp_id) or (False, None, None)

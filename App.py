@@ -9,7 +9,7 @@ from RecognitionHandler import RecognitionHandler
 from RegistrationHandler import RegistrationHandler
 from TimerManager import TimerManager
 from WebcamManager import WebcamManager
-
+from AntiSpoofHandler import AntiSpoofHandler
 
 class App:
     def __init__(self):
@@ -41,6 +41,12 @@ class App:
             known_names,  # This was missing before
             multi_encodings_dict
         )
+
+        # Replace the threshold to be more strict
+        self.anti_spoof_handler = AntiSpoofHandler(threshold=0.7)  # More strict threshold
+
+        # Add this after creating anti_spoof_handler to enable debug mode
+        self.anti_spoof_handler.enable_debug(True)
 
         # Webcam manager
         self.webcam = WebcamManager()

@@ -13,6 +13,7 @@ class LoginHandler:
             util.msg_box("Already Logged In", f"User '{self.app.current_user}' is already logged in.")
             return
         frame = self.app.webcam.get_latest_frame()
+
         status, name_or_id = self.recognition.recognize_face(frame)
         if status == 'no_persons_found':
             util.msg_box("Error", "No face detected. Please try again.")
